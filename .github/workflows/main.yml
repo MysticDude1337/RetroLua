@@ -1,0 +1,65 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'site/index.html'
+      - 'site/sw.js'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            wasm-src -> target
+
+      - name: Build the WebAssembly engine
+        run: |
+          cd wasm-src
+          cargo build --target wasm32-unknown-unknown --release
+
+      - name: Assemble the site
+        run: python3 site/build.py
+
+      - name: Keep the built page as a download
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: |
+            site/index.html
+            docs/index.html
+
+      - name: Commit the rebuilt page
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html docs/sw.js site/index.html site/sw.js
+          if git diff --cached --quiet; then
+            echo "nothing changed"
+          else
+            git commit -m "rebuild site from engine"
+            git push
+          fi
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
