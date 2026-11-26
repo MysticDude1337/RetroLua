@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - 'site/index.html'
-      - 'site/sw.js'
+      - 'RetroLua/docs/**'
+      - 'RetroLua/site/index.html'
+      - 'RetroLua/site/sw.js'
   workflow_dispatch:
 
 permissions:
@@ -15,6 +15,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: RetroLua
     steps:
       - uses: actions/checkout@v4
 
@@ -25,8 +28,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            . -> target
-            wasm-src -> target
+            RetroLua -> target
+            RetroLua/wasm-src -> target
 
       - name: Build the WebAssembly engine
         run: |
@@ -41,8 +44,8 @@ jobs:
         with:
           name: site
           path: |
-            site/index.html
-            docs/index.html
+            RetroLua/site/index.html
+            RetroLua/docs/index.html
 
       - name: Commit the rebuilt page
         run: |
@@ -58,8 +61,13 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: RetroLua
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: RetroLua -> target
       - run: cargo test
